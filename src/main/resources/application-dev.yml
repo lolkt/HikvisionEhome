@@ -1,0 +1,7 @@
+#debug=true
+debug: false
+# 端口
+server:
+  port: 9090
+  servlet:
+    context-path: /

@@ -2,10 +2,7 @@ package com.hikvision.ehome;
 
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
@@ -135,48 +132,6 @@ public class Test1 {
     }
 
 
-    class EHomeMsgCallBack implements HCISUPAlarm.EHomeMsgCallBack {
-        @Override
-        public boolean invoke(NativeLong iHandle, HCISUPAlarm.NET_EHOME_ALARM_MSG pAlarmMsg, Pointer pUser) {
-            System.out.println(new String("EHomeMsgCallBack: ") + pAlarmMsg.dwAlarmType + ",dwAlarmInfoLen:" + pAlarmMsg.dwAlarmInfoLen + ",dwXmlBufLen:" + pAlarmMsg.dwXmlBufLen);
-            if (pAlarmMsg.dwXmlBufLen != 0) {
-                HCISUPAlarm.BYTE_ARRAY strXMLData = new HCISUPAlarm.BYTE_ARRAY(pAlarmMsg.dwXmlBufLen);
-                strXMLData.write();
-                Pointer pPlateInfo = strXMLData.getPointer();
-                pPlateInfo.write(0, pAlarmMsg.pXmlBuf.getByteArray(0, strXMLData.size()), 0, strXMLData.size());
-                strXMLData.read();
-
-                String strXML = new String(strXMLData.byValue).trim();
-                System.out.println(strXML + "aaaaaaaaaaaa");
-
-            }
-            switch (pAlarmMsg.dwAlarmType) {
-                case 13:
-                    if (pAlarmMsg.pAlarmInfo != null) {
-                        HCISUPAlarm.NET_EHOME_ALARM_ISAPI_INFO strISAPIData = new HCISUPAlarm.NET_EHOME_ALARM_ISAPI_INFO();
-                        strISAPIData.write();
-                        Pointer pISAPIInfo = strISAPIData.getPointer();
-                        pISAPIInfo.write(0, pAlarmMsg.pAlarmInfo.getByteArray(0, strISAPIData.size()), 0, strISAPIData.size());
-                        strISAPIData.read();
-                        if (strISAPIData.dwAlarmDataLen != 0)//Json或者XML数据
-                        {
-                            HCISUPAlarm.BYTE_ARRAY m_strISAPIData = new HCISUPAlarm.BYTE_ARRAY(strISAPIData.dwAlarmDataLen);
-                            m_strISAPIData.write();
-                            Pointer pPlateInfo = m_strISAPIData.getPointer();
-                            pPlateInfo.write(0, strISAPIData.pAlarmData.getByteArray(0, m_strISAPIData.size()), 0, m_strISAPIData.size());
-                            m_strISAPIData.read();
-                            System.out.println(new String(m_strISAPIData.byValue).trim() + "bbbbbbbbbb");
-                        }
-                    }
-                    break;
-                default:
-                    break;
-            }
-            return true;
-        }
-    }
-
-
     public void CMS_Init() {
 
         HCISUPCMS.BYTE_ARRAY ptrByteArrayCrypto = new HCISUPCMS.BYTE_ARRAY(256);
@@ -294,94 +249,6 @@ public class Test1 {
         }
 
 
-    }
-
-
-    public class FRegisterCallBack implements HCISUPCMS.DEVICE_REGISTER_CB {
-        @Override
-        public boolean invoke(int lUserID, int dwDataType, Pointer pOutBuffer, int dwOutLen, Pointer pInBuffer, int dwInLen, Pointer pUser) {
-            System.out.println("FRegisterCallBack, dwDataType:" + dwDataType + ", lUserID:" + lUserID);
-            switch (dwDataType) {
-                case 0:  //ENUM_DEV_ON                
-                    HCISUPCMS.NET_EHOME_DEV_REG_INFO_V12 strDevRegInfo = new HCISUPCMS.NET_EHOME_DEV_REG_INFO_V12();
-                    strDevRegInfo.write();
-                    Pointer pDevRegInfo = strDevRegInfo.getPointer();
-                    pDevRegInfo.write(0, pOutBuffer.getByteArray(0, strDevRegInfo.size()), 0, strDevRegInfo.size());
-                    strDevRegInfo.read();
-                    HCISUPCMS.NET_EHOME_SERVER_INFO_V50 strEhomeServerInfo = new HCISUPCMS.NET_EHOME_SERVER_INFO_V50();
-                    strEhomeServerInfo.read();
-                    //strEhomeServerInfo.dwSize = strEhomeServerInfo.size();
-                    byte[] byIP = "10.0.0.109".getBytes();
-                    System.arraycopy(byIP, 0, strEhomeServerInfo.struUDPAlarmSever.szIP, 0, byIP.length);
-                    System.arraycopy(byIP, 0, strEhomeServerInfo.struTCPAlarmSever.szIP, 0, byIP.length);
-                    strEhomeServerInfo.dwAlarmServerType = 1; //报警服务器类型：0- 只支持UDP协议上报，1- 支持UDP、TCP两种协议上报 2-MQTT
-                    strEhomeServerInfo.struTCPAlarmSever.wPort = 7661;
-                    strEhomeServerInfo.struUDPAlarmSever.wPort = 7662;
-
-                    byte[] byClouldAccessKey = "test".getBytes();
-                    System.arraycopy(byClouldAccessKey, 0, strEhomeServerInfo.byClouldAccessKey, 0, byClouldAccessKey.length);
-                    byte[] byClouldSecretKey = "12345".getBytes();
-                    System.arraycopy(byClouldSecretKey, 0, strEhomeServerInfo.byClouldSecretKey, 0, byClouldSecretKey.length);
-
-                    strEhomeServerInfo.dwPicServerType = 3;
-                    System.arraycopy(byIP, 0, strEhomeServerInfo.struPictureSever.szIP, 0, byIP.length);
-                    strEhomeServerInfo.struPictureSever.wPort = 8089;
-                    strEhomeServerInfo.write();
-                    dwInLen = strEhomeServerInfo.size();
-                    pInBuffer.write(0, strEhomeServerInfo.getPointer().getByteArray(0, dwInLen), 0, dwInLen);
-
-                    System.out.println("Device online, DeviceID is:" + new String(strDevRegInfo.struRegInfo.byDeviceID).trim());
-                    lLoginID = lUserID;
-                    //     jTextFieldDevNo.setText(new String(strDevRegInfo.struRegInfo.byDeviceID));
-                    return true;
-                case 3: //ENUM_DEV_AUTH                
-                    strDevRegInfo = new HCISUPCMS.NET_EHOME_DEV_REG_INFO_V12();
-                    strDevRegInfo.write();
-                    pDevRegInfo = strDevRegInfo.getPointer();
-                    pDevRegInfo.write(0, pOutBuffer.getByteArray(0, strDevRegInfo.size()), 0, strDevRegInfo.size());
-                    strDevRegInfo.read();
-                    String szEHomeKey = "hik12345";
-                    byte[] bs = szEHomeKey.getBytes();
-                    pInBuffer.write(0, bs, 0, szEHomeKey.length());
-                    break;
-                case 4: //HCISUPCMS.ENUM_DEV_SESSIONKEY
-                    strDevRegInfo = new HCISUPCMS.NET_EHOME_DEV_REG_INFO_V12();
-                    strDevRegInfo.write();
-                    pDevRegInfo = strDevRegInfo.getPointer();
-                    pDevRegInfo.write(0, pOutBuffer.getByteArray(0, strDevRegInfo.size()), 0, strDevRegInfo.size());
-                    strDevRegInfo.read();
-
-                    HCISUPCMS.NET_EHOME_DEV_SESSIONKEY struSessionKey = new HCISUPCMS.NET_EHOME_DEV_SESSIONKEY();
-                    System.arraycopy(strDevRegInfo.struRegInfo.byDeviceID, 0, struSessionKey.sDeviceID, 0, strDevRegInfo.struRegInfo.byDeviceID.length);
-                    System.arraycopy(strDevRegInfo.struRegInfo.bySessionKey, 0, struSessionKey.sSessionKey, 0, strDevRegInfo.struRegInfo.bySessionKey.length);
-                    struSessionKey.write();
-
-                    Pointer pSessionKey = struSessionKey.getPointer();
-
-                    hCEhomeCMS.NET_ECMS_SetDeviceSessionKey(pSessionKey);
-                    mHCEHomeAlarm.NET_EALARM_SetDeviceSessionKey(pSessionKey);
-                    break;
-                case 5: //HCISUPCMS.ENUM_DEV_DAS_REQ
-                    String dasInfo = "{\n" +
-                            "    \"Type\":\"DAS\",\n" +
-                            "    \"DasInfo\":{\n" +
-                            "        \"Address\":\"10.0.0.109\",\n" +
-                            "        \"Domain\":\"\",\n" +
-                            "        \"ServerID\":\"\",\n" +
-                            "        \"Port\":7660,\n" +
-                            "        \"UdpPort\":\n" +
-                            "    }\n" +
-                            "}";
-                    System.out.println(dasInfo);
-                    byte[] bs1 = dasInfo.getBytes();
-                    pInBuffer.write(0, bs1, 0, dasInfo.length());
-                    break;
-                default:
-                    System.out.println("FRegisterCallBack default type:" + dwDataType);
-                    break;
-            }
-            return true;
-        }
     }
 
 
@@ -815,66 +682,4 @@ public class Test1 {
     }
 
 
-    public class PSS_Message_Callback implements HCISUPSS.EHomeSSMsgCallBack {
-
-        @Override
-        public boolean invoke(NativeLong iHandle, int enumType, Pointer pOutBuffer, int dwOutLen, Pointer pInBuffer,
-                              int dwInLen, Pointer pUser) {
-            if (1 == enumType) {
-                HCISUPSS.NET_EHOME_SS_TOMCAT_MSG pTomcatMsg = new HCISUPSS.NET_EHOME_SS_TOMCAT_MSG();
-                String szDevUri = new String(pTomcatMsg.szDevUri).trim();
-                int dwPicNum = pTomcatMsg.dwPicNum;
-                String pPicURLs = pTomcatMsg.pPicURLs;
-                System.out.println("szDevUri = " + szDevUri + "   dwPicNum= " + dwPicNum + "   pPicURLs=" + pPicURLs);
-            } else if (2 == enumType) {
-
-                //				int type = pInBuffer.dwAlarmServerType;
-                //				int picServerType = pInBuffer.dwPicServerType;
-                //				System.out.println("type=" + type + "   picType=" + picServerType);
-
-            } else if (3 == enumType) {
-
-            }
-            return true;
-        }
-    }
-
-    public class PSS_Storage_Callback implements HCISUPSS.EHomeSSStorageCallBack {
-
-        @Override
-        public boolean invoke(NativeLong iHandle, String pFileName, Pointer pFileBuf, int dwFileLen, Pointer pFilePath, Pointer pUser) {
-            String strPath = "C://EhomePicServer/";
-            String strFilePath = strPath + pFileName;
-
-            //若此目录不存在，则创建之
-            File myPath = new File(strPath);
-            if (!myPath.exists()) {
-                myPath.mkdir();
-                System.out.println("创建文件夹路径为：" + strPath);
-            }
-
-            if (dwFileLen > 0 && pFileBuf != null) {
-                FileOutputStream fout;
-                try {
-                    fout = new FileOutputStream(strFilePath);
-                    //将字节写入文件
-                    long offset = 0;
-                    ByteBuffer buffers = pFileBuf.getByteBuffer(offset, dwFileLen);
-                    byte[] bytes = new byte[dwFileLen];
-                    buffers.rewind();
-                    buffers.get(bytes);
-                    fout.write(bytes);
-                    fout.close();
-                } catch (FileNotFoundException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-            }
-            pFilePath.write(0, strFilePath.getBytes(), 0, strFilePath.getBytes().length);
-            return true;
-        }
-    }
 }//Test1  Class结束

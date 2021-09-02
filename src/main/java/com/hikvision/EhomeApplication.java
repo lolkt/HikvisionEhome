@@ -1,4 +1,4 @@
-package com.hikvision.ehome;
+package com.hikvision;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
